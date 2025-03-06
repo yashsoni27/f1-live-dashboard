@@ -1,5 +1,5 @@
 "use client";
-import apiClient from "@/apiClient";
+import apiClient from '@/apiClient';
 import { useState, useEffect } from "react";
 
 const SessionSelector = ({
@@ -52,7 +52,6 @@ const SessionSelector = ({
             console.log("Selected session: ", selectedSession);
             onSessionSelect(selectedSession);
           }}
-          value={""}
         >
           <option value="">Select a session</option>
           {sessions.map((session, index) => (

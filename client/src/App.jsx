@@ -139,7 +139,7 @@ function App() {
         {selectedSession && (
           <>
             <div className="mb-4">
-              <RaceInfo sessionData={sessionData} isLive={isLive} />
+              <RaceInfo sessionData={selectedSession} isLive={isLive} />
             </div>
 
             <div className="mb-4">

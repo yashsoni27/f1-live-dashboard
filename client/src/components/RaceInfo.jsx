@@ -1,4 +1,5 @@
 "use client"
+import apiClient from '@/apiClient';
 import { useState, useEffect } from 'react';
 
 const RaceInfo = ({ sessionData, isLive }) => {
@@ -9,8 +10,8 @@ const RaceInfo = ({ sessionData, isLive }) => {
     
     async function fetchWeather() {
       try {
-        const response = await fetch(`/api/weather?session_key=${sessionData.session_key}`);
-        const data = await response.json();
+        const { data } = await apiClient(`/api/weather?session_key=${sessionData.session_key}`);
+        console.log("weatherData: ", data);
         setWeather(data);
       } catch (error) {
         console.error('Error fetching weather data:', error);
@@ -30,13 +31,16 @@ const RaceInfo = ({ sessionData, isLive }) => {
     };
   }, [sessionData, isLive]);
   
-  if (!sessionData) return null;
+  if (!sessionData) {
+    console.log("RaceInfo rendering null - no session data");
+    return <div className="bg-gray-800 rounded-lg p-4 text-white">Waiting for session data...</div>;
+  }
   
   return (
     <div className="bg-gray-800 rounded-lg p-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white mb-2">{sessionData.meeting_name}</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">{sessionData.circuit_short_name}</h2>
           <h3 className="text-xl font-semibold text-gray-300 mb-4">{sessionData.session_name}</h3>
           
           <div className="flex items-center mb-2">
@@ -45,7 +49,7 @@ const RaceInfo = ({ sessionData, isLive }) => {
           </div>
           
           <p className="text-gray-300">
-            {new Date(sessionData.date).toLocaleDateString()} at {new Date(sessionData.date).toLocaleTimeString()}
+            {new Date(sessionData.date_start).toLocaleDateString()} at {new Date(sessionData.date_start).toLocaleTimeString()}
           </p>
         </div>
         
@@ -67,7 +71,7 @@ const RaceInfo = ({ sessionData, isLive }) => {
               </div>
               <div>
                 <p className="text-gray-400 text-sm">Wind Speed</p>
-                <p className="text-white">{weather.wind_speed} km/h</p>
+                <p className="text-white">{weather.wind_speed} m/s</p>
               </div>
             </div>
           </div>

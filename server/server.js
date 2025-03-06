@@ -242,7 +242,7 @@ app.get("/api/session-details", async (req, res) => {
 /* -------------------------------------------------------------------------- */
 app.get("/api/weather", async (req, res) => {
   const { session_key } = req.query;
-
+  console.log("Weather session: ". session_key);
   if (!session_key) {
     return res.status(400).json({ error: "session_key is required" });
   }
