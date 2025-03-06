@@ -169,40 +169,48 @@ app.get("/api/positions", async (req, res) => {
 });
 
 /* -------------------------------------------------------------------------- */
-/*                            Timing data endpoint                            */
+/*                            Intervals data endpoint                         */
 /* -------------------------------------------------------------------------- */
-app.get("/api/timing", async (req, res) => {
-  const { session_key, live, timestamp } = req.query;
+app.get("/api/intervals", async (req, res) => {
+  const { session_key, timestamp } = req.query;
+  console.log("intervals: ", session_key, timestamp);
 
   if (!session_key) {
     return res.status(400).json({ error: "session_key is required" });
   }
 
   try {
-    let timingUrl = `${OPENF1_API_URL}/lap_times?session_key=${session_key}`;
+    let intervalUrl = `${OPENF1_API_URL}/intervals?session_key=${session_key}`
+    let timingUrl = `${OPENF1_API_URL}/laps?session_key=${session_key}`;
     let stintUrl = `${OPENF1_API_URL}/stints?session_key=${session_key}`;
+    let positionUrl = `${OPENF1_API_URL}/position?session_key=${session_key}`;
 
-    // If historical playback, add timestamp filter
-    if (!live && timestamp) {
-      timingUrl += `&date<=${timestamp}`;
-      stintUrl += `&date<=${timestamp}`;
-    }
+    // // If historical playback, add timestamp filter
+    // if (timestamp != null) {
+    //   intervalUrl += `&date<=${timestamp}`;
+    //   timingUrl += `&date<=${timestamp}`;
+    //   stintUrl += `&date<=${timestamp}`;
+    // }
 
-    const [timingResponse, driversResponse, teamsResponse, stintsResponse] =
-      await Promise.all([
-        axios.get(timingUrl),
-        axios.get(`${OPENF1_API_URL}/drivers?session_key=${session_key}`),
-        axios.get(`${OPENF1_API_URL}/teams?session_key=${session_key}`),
-        axios.get(stintUrl),
-      ]);
-
-    const timing = timingResponse.data;
+    
+    const [intervalResponse, timingResponse, driversResponse, stintsResponse, positionResponse] =
+    await Promise.all([
+      axios.get(intervalUrl),
+      axios.get(timingUrl),
+      axios.get(`${OPENF1_API_URL}/drivers?session_key=${session_key}`),
+      axios.get(stintUrl),
+      axios.get(positionUrl)
+    ]);
+    
+    const intervals = intervalResponse.data;
+    const timings = timingResponse.data;
     const drivers = driversResponse.data;
-    const teams = teamsResponse.data;
     const stints = stintsResponse.data;
-
+    const positions = positionResponse.data;
+    
+    // console.log(positions);
     // Process the data to create a comprehensive timing table
-    const processedTiming = processTimingData(timing, drivers, teams, stints);
+    const processedTiming = processTimingData(intervals, timings, drivers, stints, positions);
 
     res.json(processedTiming);
   } catch (error) {
@@ -275,11 +283,11 @@ app.get("/api/weather", async (req, res) => {
 /* -------------------------------------------------------------------------- */
 /*                   Helper function to process timing data                   */
 /* -------------------------------------------------------------------------- */
-function processTimingData(timing, drivers, teams, stints) {
+function processTimingData(intervals, timings, drivers, stints, positions) {
   // Group lap times by driver
   const driverLaps = {};
 
-  timing.forEach((lap) => {
+  timings.forEach((lap) => {
     if (!driverLaps[lap.driver_number]) {
       driverLaps[lap.driver_number] = [];
     }
@@ -293,22 +301,22 @@ function processTimingData(timing, drivers, teams, stints) {
     sector_3: { time: Infinity, driver: null },
   };
 
-  timing.forEach((lap) => {
-    if (lap.sector_1_time && lap.sector_1_time < bestSectors.sector_1.time) {
+  timings.forEach((lap) => {
+    if (lap.duration_sector_1 && lap.duration_sector_1 < bestSectors.sector_1.time) {
       bestSectors.sector_1 = {
-        time: lap.sector_1_time,
+        time: lap.duration_sector_1,
         driver: lap.driver_number,
       };
     }
-    if (lap.sector_2_time && lap.sector_2_time < bestSectors.sector_2.time) {
+    if (lap.duration_sector_2 && lap.duration_sector_2 < bestSectors.sector_2.time) {
       bestSectors.sector_2 = {
-        time: lap.sector_2_time,
+        time: lap.duration_sector_2,
         driver: lap.driver_number,
       };
     }
-    if (lap.sector_3_time && lap.sector_3_time < bestSectors.sector_3.time) {
+    if (lap.duration_sector_3 && lap.duration_sector_3 < bestSectors.sector_3.time) {
       bestSectors.sector_3 = {
-        time: lap.sector_3_time,
+        time: lap.duration_sector_3,
         driver: lap.driver_number,
       };
     }
@@ -317,7 +325,6 @@ function processTimingData(timing, drivers, teams, stints) {
   // Create the final timing data
   const result = drivers.map((driver) => {
     const driverTiming = driverLaps[driver.driver_number] || [];
-    const team = teams.find((t) => t.team_id === driver.team_id);
     const driverStints = stints.filter(
       (s) => s.driver_number === driver.driver_number
     );
@@ -326,31 +333,28 @@ function processTimingData(timing, drivers, teams, stints) {
     driverTiming.sort((a, b) => b.lap_number - a.lap_number);
     const latestLap = driverTiming[0] || {};
 
-    // Calculate gap to leader
-    const position = latestLap.position || 0;
-    let gap = "";
-    let interval = "";
+    const driverPosition = positions.filter(p => p.driver_number === driver.driver_number)
+    .sort((a,b) => new Date(b.date) - new Date(a.date))
+    .slice(0,1)[0];
 
-    if (position > 1) {
-      // In a real implementation, calculate actual gaps
-      gap = "+" + (position * 1.5).toFixed(1) + "s";
-      interval = "+1.1s";
-    }
+    const gap = intervals.filter(i => i.driver_number === driver.driver_number)
+    .sort((a,b) => new Date(b.date) - new Date(a.date))
+    .slice(0,1)[0];
 
     return {
       driver_number: driver.driver_number,
-      driver_code: driver.driver_code,
+      driver_code: driver.name_acronym,
       driver_name: driver.full_name,
-      team_name: team?.name || "Unknown",
-      team_color: team?.color_code || "#FFFFFF",
-      position: position,
-      lap: latestLap.lap_number || 0,
-      last_lap_time: formatTime(latestLap.lap_time),
-      gap: gap,
-      interval: interval,
-      sector_1_time: formatTime(latestLap.sector_1_time),
-      sector_2_time: formatTime(latestLap.sector_2_time),
-      sector_3_time: formatTime(latestLap.sector_3_time),
+      team_name: driver?.team_name || "Unknown",
+      team_color: "#"+driver?.team_colour || "#FFFFFF",
+      position: driverPosition.position,
+      lap: latestLap.lap_number || '-',
+      last_lap_time: latestLap.lap_duration,
+      gap: gap.gap_to_leader,
+      interval: gap.interval,
+      sector_1_time: latestLap.duration_sector_1,
+      sector_2_time: latestLap.duration_sector_2,
+      sector_3_time: latestLap.duration_sector_3,
       sector_1_best: bestSectors.sector_1.driver === driver.driver_number,
       sector_2_best: bestSectors.sector_2.driver === driver.driver_number,
       sector_3_best: bestSectors.sector_3.driver === driver.driver_number,

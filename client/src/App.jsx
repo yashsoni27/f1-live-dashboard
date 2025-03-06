@@ -78,7 +78,7 @@ function App() {
   // Handle session selection
   const handleSessionSelect = (session) => {
     setSelectedSession(session);
-    handleFetchSessionDetails(session.session_key);
+    // handleFetchSessionDetails(session.session_key);
   };
 
   // Handle timestamp change for historical playback
@@ -143,11 +143,11 @@ function App() {
             </div>
 
             <div className="mb-4">
-              <CircuitAnimation
+              {/* <CircuitAnimation
                 sessionKey={selectedSession.session_key}
                 isLive={isLive}
                 timestamp={timestamp}
-              />
+              /> */}
             </div>
 
             <div className="mb-4">
@@ -158,7 +158,7 @@ function App() {
               />
             </div>
 
-            {!isLive && sessionData && (
+            {/* {!isLive && sessionData && (
               <div className="mb-4">
                 <PlaybackControls
                   sessionKey={selectedSession.session_key}
@@ -166,7 +166,7 @@ function App() {
                   sessionData={sessionData}
                 />
               </div>
-            )}
+            )} */}
           </>
         )}
       </main>

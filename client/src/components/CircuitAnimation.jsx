@@ -1,6 +1,7 @@
 "use client"
 import { useEffect, useRef } from 'react';
 import * as d3 from 'd3';
+import apiClient from '@/apiClient';
 
 const CircuitAnimation = ({ sessionKey, isLive, timestamp }) => {
   const svgRef = useRef();
@@ -22,8 +23,8 @@ const CircuitAnimation = ({ sessionKey, isLive, timestamp }) => {
     // Fetch circuit data
     async function fetchCircuitData() {
       try {
-        const response = await fetch(`/api/circuit?session_key=${sessionKey}`);
-        const circuitData = await response.json();
+        const { circuitData } = await apiClient(`/api/circuit?session_key=${sessionKey}`);
+        console.log("circuit data: ", circuitData);
         drawCircuit(circuitData);
       } catch (error) {
         console.error('Error fetching circuit data:', error);

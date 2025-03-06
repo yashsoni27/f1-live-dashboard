@@ -1,4 +1,5 @@
 "use client"
+import apiClient from '@/apiClient';
 import { useEffect, useState } from 'react';
 
 const TimingTable = ({ sessionKey, isLive, timestamp }) => {
@@ -11,12 +12,13 @@ const TimingTable = ({ sessionKey, isLive, timestamp }) => {
     async function fetchTimingData() {
       try {
         setLoading(true);
+        // console.log("timing table: ", sessionKey, isLive, timestamp);
         const endpoint = isLive 
-          ? `/api/timing?session_key=${sessionKey}&live=true` 
-          : `/api/timing?session_key=${sessionKey}&timestamp=${timestamp}`;
+          ? `/api/intervals?session_key=${sessionKey}` 
+          : `/api/intervals?session_key=${sessionKey}&timestamp=${timestamp}`;
           
-        const response = await fetch(endpoint);
-        const data = await response.json();
+        const {data} = await apiClient(endpoint);
+        console.log ("Interval data: ", data);
         setTimingData(data);
       } catch (error) {
         console.error('Error fetching timing data:', error);
