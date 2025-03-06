@@ -39,7 +39,7 @@ This dashboard leverages live data from Formula 1 sources (to be determined/impl
 1.  **Clone the repository:**
 
     ```bash
-    git clone [https://github.com/yashsoni27/f1-live-dashboard.git](https://www.google.com/search?q=https://github.com/yashsoni27/f1-live-dashboard.git)
+    git clone https://github.com/yashsoni27/f1-live-dashboard.git
     cd f1-live-dashboard
     ```
 
