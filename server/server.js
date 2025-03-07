@@ -46,18 +46,18 @@ app.get("/api/meetings", async (req, res) => {
     const { year } = req.query;
     console.log("meeting called: ", year);
     const response = await axios.get(`${OPENF1_API_URL}/meetings?year=${year}`);
-    
-    const venues = response.data.map(venue => ({
-      location: venue.location
+
+    const venues = response.data.map((venue) => ({
+      location: venue.location,
     }));
 
     res.json(response.data);
     // res.json(venues);
   } catch (error) {
     console.error("Error fetching meetings: ", error);
-    res.status(500).json({ error: "Failed to fetch meetings"})
+    res.status(500).json({ error: "Failed to fetch meetings" });
   }
-})
+});
 
 /* -------------------------------------------------------------------------- */
 /*                               Sessions endpoint                            */
@@ -66,7 +66,9 @@ app.get("/api/sessions", async (req, res) => {
   try {
     const { year, circuit_key } = req.query;
     console.log(year, circuit_key);
-    const response = await axios.get(`${OPENF1_API_URL}/sessions?year=${year}&circuit_key=${circuit_key}`);
+    const response = await axios.get(
+      `${OPENF1_API_URL}/sessions?year=${year}&circuit_key=${circuit_key}`
+    );
     const sessions = response.data;
 
     // Sort by date, most recent first
@@ -172,16 +174,17 @@ app.get("/api/positions", async (req, res) => {
 /*                            Intervals data endpoint                         */
 /* -------------------------------------------------------------------------- */
 app.get("/api/intervals", async (req, res) => {
-  const { session_key, timestamp } = req.query;
-  console.log("intervals: ", session_key, timestamp);
+  const { session_key, timestamp, session_type } = req.query;
+  console.log("intervals: ", session_key, timestamp, session_type);
 
   if (!session_key) {
     return res.status(400).json({ error: "session_key is required" });
   }
 
   try {
-    let intervalUrl = `${OPENF1_API_URL}/intervals?session_key=${session_key}`
+    let intervalUrl = `${OPENF1_API_URL}/intervals?session_key=${session_key}`;
     let timingUrl = `${OPENF1_API_URL}/laps?session_key=${session_key}`;
+    let driverUrl = `${OPENF1_API_URL}/drivers?session_key=${session_key}`
     let stintUrl = `${OPENF1_API_URL}/stints?session_key=${session_key}`;
     let positionUrl = `${OPENF1_API_URL}/position?session_key=${session_key}`;
 
@@ -192,25 +195,36 @@ app.get("/api/intervals", async (req, res) => {
     //   stintUrl += `&date<=${timestamp}`;
     // }
 
-    
-    const [intervalResponse, timingResponse, driversResponse, stintsResponse, positionResponse] =
-    await Promise.all([
+    const [
+      intervalResponse,
+      timingResponse,
+      driversResponse,
+      stintsResponse,
+      positionResponse,
+    ] = await Promise.all([
       axios.get(intervalUrl),
       axios.get(timingUrl),
-      axios.get(`${OPENF1_API_URL}/drivers?session_key=${session_key}`),
+      axios.get(driverUrl),
       axios.get(stintUrl),
-      axios.get(positionUrl)
+      axios.get(positionUrl),
     ]);
-    
+
     const intervals = intervalResponse.data;
     const timings = timingResponse.data;
     const drivers = driversResponse.data;
     const stints = stintsResponse.data;
     const positions = positionResponse.data;
-    
-    // console.log(positions);
+
+    // console.log("testing: ", intervals.length, timings.length, drivers.length, stints.length, positions.length);
     // Process the data to create a comprehensive timing table
-    const processedTiming = processTimingData(intervals, timings, drivers, stints, positions);
+    const processedTiming = processTimingData(
+      intervals,
+      timings,
+      drivers,
+      stints,
+      positions,
+      session_type
+    );
 
     res.json(processedTiming);
   } catch (error) {
@@ -250,7 +264,7 @@ app.get("/api/session-details", async (req, res) => {
 /* -------------------------------------------------------------------------- */
 app.get("/api/weather", async (req, res) => {
   const { session_key } = req.query;
-  console.log("Weather session: ". session_key);
+  console.log("Weather session: ".session_key);
   if (!session_key) {
     return res.status(400).json({ error: "session_key is required" });
   }
@@ -275,7 +289,6 @@ app.get("/api/weather", async (req, res) => {
   }
 });
 
-
 /* -------------------------------------------------------------------------- */
 /*                              Helper Functions                              */
 /* -------------------------------------------------------------------------- */
@@ -283,7 +296,14 @@ app.get("/api/weather", async (req, res) => {
 /* -------------------------------------------------------------------------- */
 /*                   Helper function to process timing data                   */
 /* -------------------------------------------------------------------------- */
-function processTimingData(intervals, timings, drivers, stints, positions) {
+function processTimingData(
+  intervals,
+  timings,
+  drivers,
+  stints,
+  positions,
+  session_type
+) {
   // Group lap times by driver
   const driverLaps = {};
 
@@ -302,19 +322,28 @@ function processTimingData(intervals, timings, drivers, stints, positions) {
   };
 
   timings.forEach((lap) => {
-    if (lap.duration_sector_1 && lap.duration_sector_1 < bestSectors.sector_1.time) {
+    if (
+      lap.duration_sector_1 &&
+      lap.duration_sector_1 < bestSectors.sector_1.time
+    ) {
       bestSectors.sector_1 = {
         time: lap.duration_sector_1,
         driver: lap.driver_number,
       };
     }
-    if (lap.duration_sector_2 && lap.duration_sector_2 < bestSectors.sector_2.time) {
+    if (
+      lap.duration_sector_2 &&
+      lap.duration_sector_2 < bestSectors.sector_2.time
+    ) {
       bestSectors.sector_2 = {
         time: lap.duration_sector_2,
         driver: lap.driver_number,
       };
     }
-    if (lap.duration_sector_3 && lap.duration_sector_3 < bestSectors.sector_3.time) {
+    if (
+      lap.duration_sector_3 &&
+      lap.duration_sector_3 < bestSectors.sector_3.time
+    ) {
       bestSectors.sector_3 = {
         time: lap.duration_sector_3,
         driver: lap.driver_number,
@@ -333,25 +362,30 @@ function processTimingData(intervals, timings, drivers, stints, positions) {
     driverTiming.sort((a, b) => b.lap_number - a.lap_number);
     const latestLap = driverTiming[0] || {};
 
-    const driverPosition = positions.filter(p => p.driver_number === driver.driver_number)
-    .sort((a,b) => new Date(b.date) - new Date(a.date))
-    .slice(0,1)[0];
+    const driverPosition = positions
+      .filter((p) => p.driver_number === driver.driver_number)
+      .sort((a, b) => new Date(b.date) - new Date(a.date))
+      .slice(0, 1)[0];
 
-    const gap = intervals.filter(i => i.driver_number === driver.driver_number)
-    .sort((a,b) => new Date(b.date) - new Date(a.date))
-    .slice(0,1)[0];
+    let gap = [];
+    if (session_type == "Race") {
+      gap = intervals
+        .filter((i) => i.driver_number === driver.driver_number)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 1)[0];
+    }
 
     return {
       driver_number: driver.driver_number,
       driver_code: driver.name_acronym,
       driver_name: driver.full_name,
       team_name: driver?.team_name || "Unknown",
-      team_color: "#"+driver?.team_colour || "#FFFFFF",
+      team_color: "#" + driver?.team_colour || "#FFFFFF",
       position: driverPosition.position,
-      lap: latestLap.lap_number || '-',
+      lap: latestLap.lap_number || "-",
       last_lap_time: latestLap.lap_duration,
-      gap: gap.gap_to_leader,
-      interval: gap.interval,
+      gap: session_type == "Race" ? gap.gap_to_leader : '-',
+      interval: session_type == "Race" ? gap.interval : '-',
       sector_1_time: latestLap.duration_sector_1,
       sector_2_time: latestLap.duration_sector_2,
       sector_3_time: latestLap.duration_sector_3,
@@ -451,9 +485,6 @@ function generateSpaLikeCircuit() {
   ];
 }
 
-
-
-
 /* -------------------------------------------------------------------------- */
 /*                           Start live data polling                          */
 /* -------------------------------------------------------------------------- */
@@ -488,19 +519,16 @@ function startLiveDataPolling() {
           timing: timingResponse.data,
           timestamp: Date.now(),
         });
-      } 
+      }
       // else {
       //   // console.log("No live session");
       //   console.error("Error polling live data: ", error);
       // }
-
     } catch (error) {
       console.error("Error polling live data:", error);
     }
   }, 1000); // Poll every second
 }
-
-
 
 /* -------------------------------------------------------------------------- */
 /*                             Starting the server                            */

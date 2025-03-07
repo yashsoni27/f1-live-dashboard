@@ -155,6 +155,7 @@ function App() {
                 sessionKey={selectedSession.session_key}
                 isLive={isLive}
                 timestamp={timestamp}
+                sessionType={selectedSession.session_type}
               />
             </div>
 

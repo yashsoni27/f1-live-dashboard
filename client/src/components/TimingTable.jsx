@@ -2,7 +2,7 @@
 import apiClient from '@/apiClient';
 import { useEffect, useState } from 'react';
 
-const TimingTable = ({ sessionKey, isLive, timestamp }) => {
+const TimingTable = ({ sessionKey, isLive, timestamp, sessionType }) => {
   const [timingData, setTimingData] = useState([]);
   const [loading, setLoading] = useState(true);
   
@@ -14,8 +14,8 @@ const TimingTable = ({ sessionKey, isLive, timestamp }) => {
         setLoading(true);
         // console.log("timing table: ", sessionKey, isLive, timestamp);
         const endpoint = isLive 
-          ? `/api/intervals?session_key=${sessionKey}` 
-          : `/api/intervals?session_key=${sessionKey}&timestamp=${timestamp}`;
+          ? `/api/intervals?session_key=${sessionKey}&session_type=${sessionType}` 
+          : `/api/intervals?session_key=${sessionKey}&session_type=${sessionType}&timestamp=${timestamp}`;
           
         const {data} = await apiClient(endpoint);
         console.log ("Interval data: ", data);
