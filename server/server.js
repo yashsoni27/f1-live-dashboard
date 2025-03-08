@@ -184,7 +184,7 @@ app.get("/api/intervals", async (req, res) => {
   try {
     let intervalUrl = `${OPENF1_API_URL}/intervals?session_key=${session_key}`;
     let timingUrl = `${OPENF1_API_URL}/laps?session_key=${session_key}`;
-    let driverUrl = `${OPENF1_API_URL}/drivers?session_key=${session_key}`
+    let driverUrl = `${OPENF1_API_URL}/drivers?session_key=${session_key}`;
     let stintUrl = `${OPENF1_API_URL}/stints?session_key=${session_key}`;
     let positionUrl = `${OPENF1_API_URL}/position?session_key=${session_key}`;
 
@@ -351,6 +351,16 @@ function processTimingData(
     }
   });
 
+  // Find best lap
+  const bestLap = { time: Infinity, driver: null };
+
+  timings.forEach((lap) => {
+    if (lap.lap_duration && lap.lap_duration < bestLap.time) {
+      bestLap.time = lap.lap_duration;
+      bestLap.driver = lap.driver_number;
+    }
+  });
+
   // Create the final timing data
   const result = drivers.map((driver) => {
     const driverTiming = driverLaps[driver.driver_number] || [];
@@ -383,15 +393,17 @@ function processTimingData(
       team_color: "#" + driver?.team_colour || "#FFFFFF",
       position: driverPosition.position,
       lap: latestLap.lap_number || "-",
-      last_lap_time: latestLap.lap_duration,
-      gap: session_type == "Race" ? gap.gap_to_leader : '-',
-      interval: session_type == "Race" ? gap.interval : '-',
+      last_lap_time: formatTime(latestLap.lap_duration),
+      // last_lap_time: latestLap.lap_duration,
+      gap: session_type == "Race" ? gap.gap_to_leader : "-",
+      interval: session_type == "Race" ? gap.interval : "-",
       sector_1_time: latestLap.duration_sector_1,
       sector_2_time: latestLap.duration_sector_2,
       sector_3_time: latestLap.duration_sector_3,
       sector_1_best: bestSectors.sector_1.driver === driver.driver_number,
       sector_2_best: bestSectors.sector_2.driver === driver.driver_number,
       sector_3_best: bestSectors.sector_3.driver === driver.driver_number,
+      best_lap_overall: bestLap.driver === driver.driver_number,
       tire: driverStints[driverStints.length - 1]?.compound || "Unknown",
     };
   });
@@ -405,15 +417,12 @@ function processTimingData(
 /* -------------------------------------------------------------------------- */
 /*                     Helper function to format lap times                    */
 /* -------------------------------------------------------------------------- */
-function formatTime(timeMs) {
-  if (!timeMs) return "--";
+function formatTime(totalSeconds) {
+  if (!totalSeconds && totalSeconds !== 0) return "--"; // Handle null, undefined, or no input, but allow 0
 
-  const totalSeconds = timeMs / 1000;
   const minutes = Math.floor(totalSeconds / 60);
   const seconds = Math.floor(totalSeconds % 60);
-  const milliseconds = Math.floor(
-    (totalSeconds - Math.floor(totalSeconds)) * 1000
-  );
+  const milliseconds = Math.floor((totalSeconds - Math.floor(totalSeconds)) * 1000);
 
   return `${minutes > 0 ? minutes + ":" : ""}${seconds
     .toString()
@@ -493,12 +502,14 @@ function startLiveDataPolling() {
     try {
       // Check for active sessions
       const sessionsResponse = await axios.get(`${OPENF1_API_URL}/sessions`);
-      const activeSessions = sessionsResponse.data.filter(
-        (s) => s.status === "Active"
-      );
+      const activeSessions = sessionsResponse.data.filter((s) => {
+        s.year == new Date().getFullYear(),
+        s.date_start.split('T')[0] == new Date().toISOString().split('T')[0]
+      });
+      console.log("active length", activeSessions.length);
 
       if (activeSessions.length > 0) {
-        // console.log("Active session");
+        console.log("Active session");
         const activeSession = activeSessions[0];
 
         // Fetch live data
@@ -525,9 +536,10 @@ function startLiveDataPolling() {
       //   console.error("Error polling live data: ", error);
       // }
     } catch (error) {
-      console.error("Error polling live data:", error);
+      // console.error("Error polling live data:", error);
+      console.error("Error polling live data");
     }
-  }, 1000); // Poll every second
+  }, 60000); // Poll every minute
 }
 
 /* -------------------------------------------------------------------------- */

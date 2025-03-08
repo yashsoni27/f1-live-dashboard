@@ -87,7 +87,7 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
+    <div className="flex flex-col min-h-screen bg-gray-900 text-white">
       <header className="bg-black p-4 shadow-md">
         <div className="container mx-auto flex justify-between items-center">
           <h1 className="text-2xl font-bold text-red-600">
@@ -106,7 +106,7 @@ function App() {
         </div>
       </header>
 
-      <main className="container mx-auto p-4">
+      <main className="flex-grow container mx-auto p-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
           <div className="md:col-span-3">
             {!liveSessionKey && (
